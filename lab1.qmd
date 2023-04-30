@@ -1,0 +1,391 @@
+---
+title: "Lab1- Arvores"
+format: pdf
+editor: visual
+---
+
+# Lab 1
+
+
+1-) Crie um documento Word e identifique-o com o nome do laboratório, data de elaboração e o seu nome ou da dupla que o elaborou
+
+2-) Crie um tópico para cada resultado que você considerar relevante (manipulação de dados ou resultado de algum processamento) identificando-o com um título e uma breve explicação. Os resultados podem ser imagens de gráficos gerados ou de listas de valores ou dados de resultados obtidos. Não devem ser incluídos os scripts ou instruções de processamento utilizados, inclua apenas os resultados que você considerar relevantes
+
+3-) No final do relatório crie um último tópico denominado "Conclusões" e elabore comentários, sugestões e conclusões sobre o que você pode aprender com a elaboração deste laboratório.
+
+# Árvores de Classificação
+
+## Iniciando Ambiente e variáveis Globais
+
+```{r}
+#| output: false
+
+library(tidyverse) 
+library(dplyr)
+library(ggplot2)
+library(ggExtra)
+library(hrbrthemes)
+library(RColorBrewer) # for the color palette
+library(GGally)
+library(ISLR)
+library(tree)
+library(caret)
+
+carseats <- ISLR::Carseats
+
+ALVO <- 8 #definir se sera uma venda alta ou baixa
+
+
+```
+
+## Exploração dos dados
+
+### Conhecendo os dados
+
+A base de dados escolhida é a carseats do pacote ISRL
+
+Um quadro de dados com 400 observações nas 11 variáveis a seguir.
+
+-   Sales: Vendas unitárias (em milhares) em cada local
+
+-   CompPric: Preço cobrado pelo concorrente em cada local
+
+-   Income: Nível de renda da comunidade (em milhares de dólares)
+
+-   Advertising - Orçamento de publicidade local para a empresa em cada local (em milhares de dólares)
+
+-   Population: Tamanho da população na região (em milhares)
+
+-   Price: Preço que a empresa cobra pelas cadeirinhas em cada local
+
+-   ShelveLoc: Um fator com níveis Ruim, Bom e Médio que indica a qualidade da localização das estantes para as cadeirinhas em cada local
+
+-   Age: Idade média da população local
+
+-   Education: Nível de educação em cada local
+
+-   Urban: Fator com níveis Não e Sim para indicar se a loja está localizada em área urbana ou rural
+
+-   US: Um fator com níveis Não e Sim para indicar se a loja está nos EUA ou não
+
+```{r}
+
+carseats |> head()
+
+carseats |> str() # tipos dos dados
+
+carseats |> dim() # tamanho da tabela
+
+carseats |> is.na()  |> sum()
+
+carseats |> summary()
+
+```
+
+### Criando a variavel alvo
+
+```{r}
+
+carseats <- carseats |>
+  dplyr::mutate(High = as.factor(ifelse(Sales <= ALVO,"No","Yes")))
+
+```
+
+### Visualizações
+
+```{r}
+carseats |> 
+  ggplot(aes(x = Sales)) +
+  geom_histogram(binwidth = 1,color="#e9ecef",alpha = 0.5, fill = "darkgreen", position = 'identity') + 
+  labs(x = "Sales", y = "Count", title = "Distribution of Sales") +
+  theme_classic()
+```
+
+```{r}
+
+carseats |> 
+  ggplot(aes(x = Sales,fill=US)) +
+  geom_histogram(binwidth = 1,color="#e9ecef",alpha = 0.5,position = 'dodge') + 
+  labs(x = "Sales", y = "Count", title = "Distribution of Sales") +
+  theme_classic()
+
+
+
+```
+
+```{r}
+carseats |>
+  ggplot(aes(x=US,y=Sales,fill=US)) + 
+  geom_boxplot() + 
+    geom_jitter(color="black", size=0.4, alpha=0.9) 
+```
+
+```{r}
+carseats |> 
+  ggplot(aes(x = Sales,fill=Urban)) +
+  geom_histogram(binwidth = 1,color="#e9ecef",alpha = 0.5,position = 'dodge') + 
+  labs(x = "Sales", y = "Count", title = "Distribution of Sales") +
+  theme_classic()
+
+
+
+```
+
+```{r}
+
+carseats |>
+  ggplot(aes(x=Urban,y=Sales,fill=Urban)) + 
+  geom_boxplot() + 
+  geom_jitter(color="black", size=0.4, alpha=0.9) 
+
+```
+
+```{r}
+
+carseats |> 
+  ggplot(aes(x = Sales,fill=ShelveLoc)) +
+  geom_histogram(binwidth = 1,color="#e9ecef",alpha = 0.5,position = 'dodge') + 
+  labs(x = "Sales", y = "Count", title = "Distribution of Sales") +
+  theme_classic()
+
+
+
+```
+
+```{r}
+carseats |>
+  ggplot(aes(x=ShelveLoc,y=Sales,fill=ShelveLoc)) + 
+  geom_boxplot() 
+```
+
+```{r}
+
+
+for(col in c("ShelveLoc","US","Urban")){
+  print(carseats |>
+  ggplot(aes(!!sym(col))) + geom_bar(aes(fill = High),position = 'dodge'))
+}
+
+
+  
+
+```
+
+A Distribuição das vendas muda conforme a qualidade da localização nas estantes . Isso **pode** facilitar para o modelo distinguir a variavel alvo, e portanto essa seria uma boa variável.
+
+Regiões Urbanas apresentam uma distribuição parecida com Regiões Rurais. Sem grande possibilidade de discriminação pelo modelo
+
+As distribuições para a variável US são parecidas. Mediana das vendas é um pouco maior para vendas no Estados unidos
+
+-   Relações entre variáveis quantitativas
+
+```{r}
+
+for(col in names(subset(carseats, select = -c(ShelveLoc,US,Urban,High,Sales)))){
+  p <- ggplot(carseats, aes(y=Sales, x=!!sym(col))) +
+      geom_point() +
+      theme(legend.position="none")
+ 
+  
+  p1 <- ggMarginal(p, type="histogram", size=10,fill = "slateblue")
+  print(p1)
+}
+
+
+
+```
+
+Olhando para esses gráficos. Somente "Preço x Vendas" possui uma relação linear. Verificamos que as cadeiras possuem relação elástica em suas vendas , quanto maior o preço , menor a quantidade vendida
+
+Não aparenta haver uma alta elasticidade cruzada da demanda. Um Aumento no preço do concorrente , não aumenta a venda das cadeirinhas.
+
+A relação entre Vendas e idade média da população parece seguir uma tendência negativa (maior a ideade média , menor a quantidade vendida, o que parece fazer sentido pois Idosos geralmente não são responsáveis por bebês). Mas não é algo muito forte
+
+```{r}
+
+carseats |>
+ggplot( aes(x=Age, y=Sales)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE) +
+  theme_classic()
+
+```
+
+-   Correlações
+
+```{r}
+
+carseats_numeric <-subset(carseats, select = -c(ShelveLoc,US,Urban,High))
+
+ggpairs(carseats_numeric, title="Correlograma") 
+
+
+```
+
+```{r}
+ggcorr(carseats_numeric, method = c("everything", "pearson"),label = TRUE) 
+```
+
+Variáveis explicativas possuem baixa correlação entre elas. Chamou atenção Preço x Preço dos concorrentes. Aparentemente tais variáveis apresentam uma relação linear, conforme a figura a seguir:
+
+```{r}
+p <- ggplot(carseats, aes(y=Price, x=CompPrice)) +
+    geom_point() +
+    theme(legend.position="none")
+
+
+p1 <- ggMarginal(p, type="histogram", size=10,fill = "slateblue")
+print(p1)
+```
+
+```{r}
+
+ggpairs(subset(carseats, select = -c(ShelveLoc,US,Urban,Sales)), ggplot2::aes(colour=High,alpha=0.5),upper = list(continuous = wrap("cor", size = 3)))
+
+
+```
+
+```{r}
+ggpairs(subset(carseats, select = -c(ShelveLoc,US,Urban,Sales)), ggplot2::aes(colour=High,alpha=0.5),upper = list(continuous = wrap("cor", size = 3)), lower = "blank")
+
+```
+
+As distribuições não mudam muito dentro de cada categoria
+
+## Modelagem
+
+### Separando entre treino e teste
+
+Obs: não modelando os dados completos para evitar viéses (seleção de variáveis, data leakage,etc )
+
+```{r}
+
+carseats_trainIndex <- createDataPartition(carseats$High, p = 0.75, list = FALSE)
+
+training_carseats <- carseats[carseats_trainIndex, ] |>
+  dplyr::select(-Sales)
+
+test_carseats <- carseats[-carseats_trainIndex, ]|>
+  dplyr::select(-Sales)
+
+print("Train dimentions: ")
+dim(training_carseats)
+print("Test dimentions: ")
+dim(test_carseats)
+
+head(training_carseats)
+head(test_carseats)
+
+
+```
+
+### Obtendo árvore
+
+```{r}
+
+set.seed(42)
+options(repr.plot.width=10, repr.plot.height=8)  # set plot size
+tree_carseats_train = tree(High ~ ., data= training_carseats)
+plot(tree_carseats_train )
+text(tree_carseats_train , pretty=0,cex=0.55)
+
+```
+
+Olhando apenas pera esse split , temos que a variável mais importante para o modelodecidir se teremos uma venda alta ou não é a Qualidade da disposição do produto na prateleira.
+
+Para o lado direito da árvore temos que para lojas fora dos Estados Unidos, mesmo em qualidades da prateleira média ou baixa, as vendas serão altas se o preço for menor do que o terceiro quartil (3rd Qu.:131.0 , olhando para o dataset completo nas primeiras etapas). É possível que nessas condições não seja possível a empresa repassar preços masi caros
+
+Os recortes de idade quase sempre são para médias abaixo de 40
+
+A Árvore *parece* não ter alta complexidade dado o seu tamanho e número de recortes (avaliação subjetiva). Provavlemente teremos que reduzir  seu tamanho para melhorar a variância (como demonstraremos no tópico a seguir)
+
+
+- Performance no treino
+
+```{r}
+predict_train =  predict(tree_carseats_train, training_carseats, type = "class")
+
+conf_matrix_train <- confusionMatrix(data = predict_train, reference = training_carseats$High)
+
+conf_matrix_train
+
+
+```
+
+
+- Performance no teste
+
+```{r}
+predict_test <- predict(tree_carseats_train,test_carseats,type='class') #prevendo coms os o modelo do treino
+
+conf_matrix_test <- caret::confusionMatrix(data = predict_test,reference = test_carseats$High)
+
+conf_matrix_test
+
+```
+
+
+```{r}
+
+# checando o balanceamento dos dados
+
+test_carseats |> 
+  count(High) |> 
+  mutate(prop= n/ sum(n))
+
+```
+
+Apesar de uma boa acurácia 76% (nos dados de a proporção erade 59%-41% par avendas baixas e altas, ou seja, foi melhor do que um chute aleatório), a árvore consegue prever um pouco melhor melhor para casos em que **não temos venda alta** (de 59 acertou 47). Enquanto que para caso de ocorrência de **venda alta**, o modelo **não performou muito bem** (acertou 29 de 41). Pensando no ponto de vista de negócio, saber o que faz vender mais é melhor do que saber o que não faz vender. Esta está última característica passa a ser importante quando o custo de estocagem é alto. Faltam detalhes para saber o custo de uma venda perdida relativa ao ganho em uma venda . Ou seja , não sabemos o impacto financeiro do modelo prever *YES* , para quando na verdade era *NO*, e vice-versa
+
+Vale ressaltar que o modelo não apresenta certa estabilidade entre treino e teste. O desempenho cai consideravlemnete na maioria das métricas. A acurácia , por exemplo, vai de 0.9167 para 0.76. Isso pode indicar um sobreajuste (overfitting) de nosso modelo, se tronou muito específico com os dados de treino, e incapaz de generalizar aos dados de teste.
+
+
+### Implementando Validação Cruzada (poda da árvore)
+
+```{r}
+
+
+cv.carseats = cv.tree(tree_carseats_train, FUN = prune.misclass)
+cv.carseats
+
+
+```
+
+```{r}
+plot(cv.carseats)
+```
+
+```{r}
+
+prune.carseats = prune.misclass(tree_carseats_train, best = 12)
+plot(prune.carseats)
+text(prune.carseats, pretty=0)
+
+
+```
+
+```{r}
+prune_tree_pred = predict(prune.carseats, test_carseats, type="class")
+
+prune_conf_matrix <- caret::confusionMatrix(data = prune_tree_pred,reference = test_carseats$High)
+
+prune_conf_matrix
+
+
+```
+
+Acurácia ficou quase a mesma. Quanto as demais métricas, apenas a sensibilidade melhorou,as demais pioraram. A acurácia na previsão de baixas (*NO*) melhrou, porém a de vendas altas (*YES*) piorou. 
+
+
+## Conclusão
+
+Sem grandes ganhos ou reduzir a complexidade do modelo. Certamente modelos de bagging podem ajudar a melhorar o desempenho e reduzir a variância. Como não temos dados ausentes (nulos), classes desbalanceadas, grandes volumes e baixa complexidade, é *possível* que *neste caso* florestas aleatórias e boosting não trariam muitos ganhso (conforme o indicado no material), seria necessário relaizar os experimentos para comprovar esta tese. Tivemos também algumas diferenças com os resultados obtidos na apostila, já que mudamos um pouco a abordagem do problema (e.g train-test-split).
+
+
+
+
+
+------------------------------------------------------------------------
+
+# Árvores de Regressão
+
