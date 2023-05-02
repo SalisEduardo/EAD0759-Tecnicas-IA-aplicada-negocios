@@ -1,6 +1,10 @@
 ---
 title: "Lab1- Arvores"
-format: pdf
+format: 
+  docx:
+    toc: true
+    number-sections: true
+    highlight-style: github
 editor: visual
 ---
 
@@ -388,4 +392,301 @@ Sem grandes ganhos ou reduzir a complexidade do modelo. Certamente modelos de ba
 ------------------------------------------------------------------------
 
 # Árvores de Regressão
+
+## Iniciando Ambiente e variáveis Globais
+```{r}
+library(MASS)
+library(randomForest)
+set.seed(42)
+
+boston <- MASS::Boston
+
+```
+
+
+## Exploração dos dados
+
+### Conhecendo os dados
+
+• crim: taxa de criminalidade per capita por bairro.
+• zn: proporção de terrenos residenciais zoneados para lotes acima de 25.000 sqft.
+• indus: proporção de acres comerciais e não comerciais por bairro.
+• chas: variável fictícia Charles River (=1 se o trecho é próximo ao rio; =0 em caso contrário).
+• nox: concentração de óxidos de nitrogênio (partes por 10 milhões).
+• rm: número médio de quartos por habitação.
+• age: proporção de idade das unidades ocupadas pelo proprietário construídas antes de 1940.
+• dis: média ponderada de distâncias para cinco centros de emprego de Boston.
+• rad: índice de acessibilidade às rodovias radiais da bairro.
+• tax: imposto propriedade de valor total taxa de imposto por $10000.
+• ptratio: relação aluno-professor por bairro.
+• black: 1000 (bk − 0,63)2 onde bk é a proporção de negros por bairro.
+• lstat: população de baixo status (porcentagem).
+• medv: valor mediano de casas ocupadas pelo proprietário em \$1000s
+
+
+
+```{r}
+
+boston |> head()
+
+boston |> str() # tipos dos dados
+
+boston |> dim() # tamanho da tabela
+
+boston |> is.na()  |> sum()
+
+boston |> summary()
+
+
+```
+
+### Visualizações
+
+```{r}
+
+
+par(mfrow=c(4,4), mar=c(2,2,2,2))
+for (i in 1:14) {
+  hist(boston[,i], main=colnames(boston)[i])
+}
+
+
+
+
+```
+
+
+```{r}
+
+ggplot(tidyr::gather(boston), aes(x = key, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ key, scales = "free") +
+  labs(x = "Variable", y = "Value", title = "Box Plots for All Variables")
+
+```
+
+Muitas variáveis não se comportam como uma normal. Talvez seja nescessário alguma transformação. Há a presença de outliers, tatno em variáveis explicativas quanto na variável alvo  (espera-se que modelos como Random Forest lidem bem com esse aspecto) 
+
+
+
+```{r}
+
+for(col in names(subset(boston,select=-c(medv)))){
+  p <- ggplot(boston, aes(y=medv, x=!!sym(col))) +
+      geom_point() +
+      #geom_smooth(method=lm , color="red", se=FALSE) +
+      labs(title = paste("medv vs ",col))+
+      theme(legend.position="none") 
+ 
+  
+  p1 <- ggMarginal(p, type="histogram", size=10,fill = "darkgreen") 
+  print(p1) 
+}
+
+
+
+```
+Podemos tirar as seguintes observações: 
+* A proximidade em relação ao "Charles River" (*chas*) não parece ter uma relação clara com a variável *medev*. Como vimos no conjunto anterior de gráficos, sua distribuição não é simétrica. Apenas uma minoria das casas estão perto do rio Charles, e mesmo dentro dessa amostra não parece haver uma relação clara no valor do imóvel. Seria interessante descartá-la do modelo para não gerar ruído
+
+* As variáveis *age*,*rm*,*ptratio* parecem seguir uma linearidade com a variável alvo. Sendo candidatas a bons preditores
+
+* Variáveis como *dis*, *lstat*,*tax* possuem uma relação com a variável alvo , mas que não é linear. Teoricamente, modelos de árvore consegue lidar bem com tais situações. Uma métrica de correlação tradicional (e.g pearson) talvez não capture tão bem esse aspecto
+
+
+
+```{r}
+ggcorr(boston, method = c("everything", "pearson"),label = TRUE) 
+```
+
+* *nox* e *age* são altamente positivamente correlacionadas (provalvemente regiões mais antigas eram antigos parques industriais), assim como *rad* e *tax*
+
+* *nox* e  *dis* são negativamente correlacionadas. Quanto mais longe dos centros de atividade econômica, menor será os níveis de óxido de nitrogênio  (poluente), dado a menor presença de industrias ou automóveis
+
+
+## Modelagem
+
+Obs: não retiramos ou trnasofrmamos as variáveis , veremos como o modelo reage 
+
+### Separando entre treino e teste
+
+
+```{r}
+
+
+boston_trainIndex <- createDataPartition(boston$medv, p = 0.80, list = FALSE)
+
+training_boston <- boston[boston_trainIndex, ] 
+
+test_boston <- boston[-boston_trainIndex, ] 
+
+print("Train dimentions: ")
+dim(training_boston)
+print("Test dimentions: ")
+dim(test_boston)
+
+head(training_boston)
+head(test_boston)
+
+
+
+
+
+```
+
+### Obtendo FLoresta aleatória 
+
+```{r}
+rf.boston = randomForest::randomForest(medv~., data = training_boston)
+rf.boston
+```
+
+```{r}
+set.seed(42)
+
+oob.err = double(13)
+test.err = double(13)
+for(mtry in 1:13){
+ fit = randomForest(medv~., data = training_boston, mtry=mtry,
+ntree = 350)
+ oob.err[mtry] = fit$mse[350]
+ pred = predict(fit, test_boston)
+ test.err[mtry] = with(test_boston, mean( (medv-pred)^2 ))
+}
+
+
+
+```
+
+```{r}
+matplot(1:mtry, cbind(oob.err,test.err), pch = 23, col = c("red",
+"blue"), type = "b", ylab="Mean Squared Error")
+
+
+
+legend("topright", legend = c("OOB","Test"), pch = 23, col = c("red",
+"blue"))
+```
+
+```{r}
+
+erros_rf  <- data.frame(
+  mtry = 1:mtry,
+  mse_oob = oob.err,
+  mse_test = test.err
+  
+)
+
+ mtry_minOOB <-erros_rf |>
+  dplyr::filter(mse_oob == min(mse_oob)) |>
+  dplyr::pull(mtry)
+
+ mtry_minTest <- erros_rf |>
+  dplyr::filter(mse_test == min(mse_test)) |>
+  dplyr::pull(mtry)
+
+ 
+print(paste("Número de preditores que resulta no MSE Mínimo no OOB: ", mtry_minOOB))
+print(paste("Número de preditores que resulta no MSE Mínimo no Test: ", mtry_minTest))
+
+```
+
+
+
+Há um espaçamento grande entre OOB e Teste indica a capacidade preditiva do modelo. Um modelo generalizador retornmaria linhas quase sobrepostas. Não foi isso que vimos, mas não sabemos julgar o quão ruim foi o espaçamento que obtivemos.
+
+
+
+
+```{r}
+
+predict_test <- predict(rf.boston,test_boston,type='class') 
+
+predict_train <- predict(rf.boston,training_boston,type='class')
+
+
+KPIS_regression_train <- data.frame(
+  mae = caret::MAE(training_boston$medv,predict_train),
+  rmse = caret::RMSE(training_boston$medv,predict_train)
+)
+KPIS_regression_train 
+
+KPIS_regression_test <- data.frame(
+  mae = caret::MAE(test_boston$medv,predict_test),
+  rmse = caret::RMSE(test_boston$medv,predict_test)
+)
+
+KPIS_regression_test
+
+
+```
+
+Computando métricas como  MAE (Mean absolute error) e RMSE (Root mean squared error), há certa estabilidade no treino e teste
+
+
+```{r}
+comparativo_teste <- data.frame(y_pred = predict_test,
+                                y_true=test_boston$medv) 
+
+
+
+comparativo_teste |> 
+  ggplot(aes(x=y_pred,y=y_true)) + 
+  geom_point() + 
+  geom_smooth() + 
+  theme_classic()
+  
+
+
+```
+
+
+## Bosting
+
+
+```{r}
+
+require(gbm)
+library(gbm)
+
+
+boost.boston = gbm(medv~., data = training_boston, distribution =
+"gaussian", n.trees = 10000, shrinkage = 0.01, interaction.depth = 4)
+summary(boost.boston)
+
+plot(boost.boston,i="lstat")
+plot(boost.boston,i="rm")
+plot(boost.boston,i="nox")
+plot(boost.boston,i="age")
+plot(boost.boston,i="dis")
+
+```
+
+
+* quanto maior a proporção de pessoas de status inferior no bairro, menor o
+valor dos preços das habitações. 
+
+* quanto maior o número de quartos, maior o preço das habitações
+
+* quanto maior a idade, menor o valor dos preços das habitações. 
+
+* quanto maior a distância, menor o valor dos preços das habitações. 
+
+* o nível de óxido de nitrogênio não aprece ter uma relação tão clara com o preço (picos no meio). Olhando a tendência da reta, parece que quanto maior a poluição, menor o preço. o 
+
+
+```{r}
+n.trees = seq(from = 100, to = 10000, by = 100)
+predmat = predict(boost.boston, newdata = test_boston, n.trees =
+n.trees)
+dim(predmat)
+
+boost.err = with(test_boston, apply( (predmat - medv)^2, 2, mean))
+plot(n.trees, boost.err, pch = 23, ylab = "Erro Médio Quadrado", xlab
+= "Número de Árvores", main = "Teste do Erro de Boosting")
+```
+
+
+Número ótimo de árvores parece ser próximo à 2000
+
 
