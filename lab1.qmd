@@ -629,6 +629,7 @@ comparativo_teste <- data.frame(y_pred = predict_test,
                                 y_true=test_boston$medv) 
 
 
+comparativo_teste
 
 comparativo_teste |> 
   ggplot(aes(x=y_pred,y=y_true)) + 
@@ -687,6 +688,20 @@ plot(n.trees, boost.err, pch = 23, ylab = "Erro Médio Quadrado", xlab
 ```
 
 
-Número ótimo de árvores parece ser próximo à 2000
+O erro se estabiliza  próximo à 2000
+
+
+## Conclusão
+
+A análise desses dados permite com que corretores ou investidores tomem boas decisões de negócio  no setor imobiliário ao se atentarem a atributos como e o número de quartos , a taxa de criminalidade, distância aos centros econômicos. Esses agentes também podem utilizar os modelos de árvores para realizarem a precificação do imóvel, dado que modelos de florestas aleatórias demosntraram um baixo erro médio. Eles também podem deixar de focar em atributos irrelevantes como a ndistância ao rio Charles
+
+Gestores públicos serão benefíciados  pela análise de variáveis trazida pelo algorítimo de boosting. Por meio dela , pode-se perceber que problemáticas socieconômicas como , criminalidade , poluição e presença de população de baixo status (desigualdade)  afetam o preço dos imóveis (reflexo de todas esses problemas).  Outras conclusões podem ser derivadas olhando o comportamento entre as variáveis explicativas
+
+
+
+
+
+
+
 
 
