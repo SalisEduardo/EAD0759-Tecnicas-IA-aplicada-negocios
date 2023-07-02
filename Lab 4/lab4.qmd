@@ -1,0 +1,397 @@
+---
+title: "Lab3"
+format: 
+  docx:
+    toc: true
+    echo: false
+    number-sections: true
+    highlight-style: github
+editor: visual
+---
+
+# Grupo:
+
+Eduardo Amorim Vilela de Salis - 11226805
+
+Débora Mauricio Kono - 9896754
+
+Douglas Silva Cardoso - 11766990
+
+```{r}
+library(GA)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(ggmap)
+library(maps)
+```
+
+
+# Laboratório GA – O Problema da Mochila
+
+## Dados: 
+
+* **Comentário**: Nessa etapa temos o seguinte problema: temos várias possibilidades de items (cada um com um peso específico e pontos de sobrevivência) para levar em uma mochila, porém esta possui uma capacidade limitada de peso que pode levar. Ou seja , temos que decidir perante recursos (*capacidade*) limitados (peso da mochila) para que tomemos a m elhor decisão possível (maximizar pontos de sobrevivência)
+
+
+```{r}
+item <- c('casaco de chuva','canivete','água
+mineral','luvas','saco de dormir','barraca','fogão
+portátil','comida enlatada','lanches')
+peso <- c(2,1,6,1,4,9,5,8,3)
+sobrevivencia <- c(5,3,15,5,6,18,8,20,8)
+dados=data.frame(item,peso,sobrevivencia)
+peso_maximo = 25
+dados
+
+
+```
+
+
+## Solução simplista
+
+* **Comentário**:  em um exemplo hipotético feito para atender o problema, não atingiríamos uma capacidade ótima. A capacidade máxima da mochila (25) não seria aproveitada (soma dos pesos resulta em 10)  e  apenas 26 pontos de sobrevivência foram obtidos. Em seguida veremos como técnincas matemáticas podem trazer ganhos perante exemplos mais simples
+
+```{r}
+#| echo: true
+
+
+# Conteúdo da Mochila: 1 significa que colocamos o item
+# Conteúdo da Mochila: 0 significa que não colocamos o item
+cromossomas <- c(0,1,1,0,0,0,0,0,1)
+dados[cromossomas==1,]
+
+```
+
+
+### Solução pelo do Algorítimo genético (G.A)
+
+**Comentário**: 
+
+* Foram testados três implantações do Algorítimo Genético, uma com uma população de 30 , outra com 50 , e outra com 100.
+* Os ganhos obtidos ao se aumentar a população não foram muito impactantes. Além disso, próximo à oitentésima geração, o encaixe médio começa a cair. Portanto não faz sentido ter uma população muito grande para esse problema. Com uma população de 100 aumentamos apenas 1 ponto de sobrevivência perante os demais . Todos os algorítmos trouxeram ganhos (alocação de recursos e pontos de sobrevivência) 
+
+* Com uma população de 30 obtivemos: 
+  * "Items:  casaco de chuva, água\nmineral ,luvas ,  fogão\nportátil , comida enlatada ,  lanches       
+  * "Peso total: 25
+  * "Pontos de sobrevivência:  61
+  
+* Com uma população de 50 obtivemos: 
+  * "Items: "casaco de chuva" "água\nmineral"   "luvas"           "fogão\nportátil" "comida enlatada" "lanches"                
+  * "Peso total: 25
+  * "Pontos de sobrevivência: 61 
+  
+* Com uma população de 100 obtivemos: 
+  * "Items:  "casaco de chuva" "canivete"        "água\nmineral"   "luvas"           "saco de dormir"  "comida enlatada" "lanches"  
+  * "Peso total: 25
+  * "Pontos de sobrevivência:  62
+
+
+
+```{r}
+fitness=function(x){
+  pontos=x%*%dados$sobrevivencia
+  pesos=x%*%dados$peso
+  if(pesos>peso_maximo){
+    return(0)
+    }else{
+      return(pontos)
+      }
+}
+```
+
+```{r}
+GA=ga(type='binary',fitness=fitness,nBits=nrow(dados),maxiter=30,popSize=50,seed=1234,keepBest=TRUE)
+```
+
+```{r}
+summary(GA)
+```
+
+```{r}
+plot(GA)
+```
+
+```{r}
+cromossomos_GA1 <- summary(GA)$solution
+
+print(dados[cromossomos_GA1==1,])
+
+print(paste("Items: ", dados[cromossomos_GA1==1,]$item))
+
+print(paste("Peso total:" ,dados[cromossomos_GA1==1,]$peso  |> sum()))
+
+print(paste("Pontos de sobrevivência: ",dados[cromossomos_GA1==1,]$sobrevivencia  |> sum()))
+```
+
+
+
+
+```{r}
+GA2=ga(type='binary',fitness=fitness,nBits=nrow(dados),maxiter=50,popSize=50,seed=1234,keepBest=TRUE)
+plot(GA2)
+```
+
+```{r}
+summary(GA2)
+```
+
+```{r}
+cromossomos_GA2 <- summary(GA2)$solution
+
+print(dados[cromossomos_GA2==1,])
+
+print(paste("Items: ", dados[cromossomos_GA2==1,]$item))
+
+print(paste("Peso total:" ,dados[cromossomos_GA2==1,]$peso  |> sum()))
+
+print(paste("Pontos de sobrevivência: ",dados[cromossomos_GA2==1,]$sobrevivencia  |> sum()))
+```
+
+
+
+```{r}
+GA3=ga(type='binary',fitness=fitness,nBits=nrow(dados),maxiter=100,popSize=50,seed=1234,keepBest=TRUE)
+plot(GA3)
+```
+
+```{r}
+summary(GA3)
+```
+
+
+```{r}
+
+cromossomos_GA3 <- summary(GA3)$solution
+
+print(dados[cromossomos_GA3==1,])
+
+print(paste("Items: ", dados[cromossomos_GA3==1,]$item))
+
+print(paste("Peso total:" ,dados[cromossomos_GA3==1,]$peso  |> sum()))
+
+print(paste("Pontos de sobrevivência: ",dados[cromossomos_GA3==1,]$sobrevivencia  |> sum()))
+
+```
+
+
+# Resolvendo TSP usando Algoritmo Genético em R
+
+
+## Dados 
+**Comentários**: nossos dados correspondem às distâncias entre as principais cidades europeis , disponiblizado pelo pacote datasets. A proposta deste laboratório consiste em solucionar o problema do caixeiro viajante por meio do algoritmo genético. A tarefa envolve descobrir o trajeto de menor extensão a ser percorrido, ao passar por todas as cidades da matriz uma única vez, antes de retornar à cidade inicial.
+
+
+```{r}
+#| echo: False
+
+
+data("eurodist", package = "datasets")
+
+print(eurodist)
+```
+
+## Aplicação do GA
+
+**Comentários**: testamos com uma população maior (100), fizemos também várias iterações aplicando o algorítmo genético para obter diversas rotas possíveis. Criamos um gráfico com as rotas dado a latitude e longitude das cidades. Adicionamos o gráfico contendo o treinamento do algorítmo.
+
+
+```{r}
+D <- as.matrix(eurodist)
+
+tourLength <- function(tour, distMatrix) {
+ tour <- c(tour, tour[1])
+ route <- embed(tour, 2)[,2:1]
+ sum(distMatrix[route])
+}
+# Função ser maximizada
+tspFitness <- function(tour, ...) 1/tourLength(tour, ...)
+
+GAcities <- ga(type = "permutation", fitness = tspFitness, distMatrix = D, lower = 1, upper = attr(eurodist, "Size"), popSize = 100,
+maxiter = 5000, run = 500, pmutation = 0.2)
+
+#summary(GA)
+```
+
+```{r}
+summary(GAcities)
+```
+
+
+* **Rota ótima usando a latitude e longitude das cidades **
+
+```{r}
+
+
+
+cities <- c("Brussels", "Copenhagen", "London", "Paris", "Madrid", "Berlin", "Rome", 
+            "Athens", "Dublin", "Edinburgh", "Lisbon", "Vienna", "Warsaw", "Stockholm",
+            "Helsinki", "Oslo", "Moscow", "Kiev", "Bucharest", "Sofia", "Istanbul")
+
+
+lat <- c(50.8503, 55.6761, 51.5074, 48.8566, 40.4168, 52.5200, 41.9028, 37.9838, 
+         53.3498, 55.9533, 38.7223, 48.2082, 52.2297, 59.3293, 60.1699, 59.9139, 
+         55.7558, 50.4501, 44.4268, 42.6977, 41.0082)
+lon <- c(4.3517, 12.5683, -0.1276, 2.3522, -3.7038, 13.4049, 12.4964, 23.7275, 
+         -6.2603, -3.1883, -9.1393, 16.3738, 21.0122, 18.0686, 24.9384, 10.7522, 
+         37.6176, 30.5234, 26.1025, 23.3219, 28.9784)
+
+optimal_route <- GAcities@solution
+
+
+
+city_coords <- data.frame(cities, lat, lon)
+
+
+ordered_coords <- city_coords[optimal_route, ]
+
+# Create a plot with lines connecting the cities
+ggplot() +
+  geom_path(data = ordered_coords, aes(x = lon, y = lat), color = "blue") +
+  geom_point(data = city_coords, aes(x = lon, y = lat), color = "red") +
+  geom_text(data = city_coords, aes(x = lon, y = lat, label = cities), hjust = -0.2, vjust = 0.4) +
+  coord_map() +
+  labs(x = "Longitude", y = "Latitude", title = "Optimal Route")
+```
+
+
+```{r}
+route_optimal <- GAcities@solution
+
+cities_name <- names(D[1 , ])
+
+cities_name <- apply(route_optimal, 1, function(x) {cities_name[x]})
+
+apply(cities_name, 2, paste, collapse = " > ")
+
+```
+
+
+
+
+```{r}
+# Visualização
+mds <- cmdscale(eurodist)
+x <- mds[, 1]
+y <- -mds[, 2]
+plot(x, y, type = "n", asp = 1, xlab = "", ylab = "")
+abline(h = pretty(range(x), 10), v = pretty(range(y), 10),col = "light gray")
+tour <- GAcities@solution[1, ]
+tour <- c(tour, tour[1])
+n <- length(tour)
+arrows(x[tour[-n]], y[tour[-n]], x[tour[-1]], y[tour[-1]],length = 0.15, angle = 25, col = "steelblue", lwd = 2)
+text(x, y, labels(eurodist), cex=0.8)
+
+```
+
+```{r}
+library(igraph)
+# TSP problem example this is the data of 21 europian cities
+data("eurodist", package = "datasets")
+D <- as.matrix(eurodist)
+
+# given a tour, calculate the total distance
+tourLength <- function(tour, distMatrix) {
+    tour <- c(tour, tour[1])
+    route <- embed(tour, 2)[, 2:1]
+    sum(distMatrix[route])
+}
+# inverse of thetotal distance is the fitness
+tpsFitness <- function(tour, ...) 1/tourLength(tour, ...)
+
+# run a GA algorithm
+GA.fit <- ga(type = "permutation", fitness = tpsFitness, distMatrix = D, min = 1, 
+    max = attr(eurodist, "Size"), popSize = 10, maxiter = 500, run = 100, pmutation = 0.2, 
+    monitor = NULL)
+
+
+getAdj <- function(tour) {
+    n <- length(tour)
+    from <- tour[1:(n - 1)]
+    to <- tour[2:n]
+    m <- n - 1
+    A <- matrix(0, m, m)
+    A[cbind(from, to)] <- 1
+    A <- A + t(A)
+    return(A)
+}
+
+# 2-d coordinates
+mds <- cmdscale(eurodist)
+x <- mds[, 1]
+y <- -mds[, 2]
+n <- length(x)
+
+B <- 100
+fitnessMat <- matrix(0, B, 2)
+A <- matrix(0, n, n)
+for (b in seq(1, B)) {
+  # Run a GA algorithm
+  GA.rep <- ga(type = "permutation", fitness = tpsFitness, distMatrix = D, 
+               lower = 1, upper = attr(eurodist, "Size"), popSize = 50, maxiter = 50, run = 100, 
+               pmutation = 0.2, monitor = NULL)
+
+  tour <- GA.rep@population[1, ]
+  tour <- c(tour, tour[1])
+  fitnessMat[b, 1] <- GA.rep@fitness[1]
+  fitnessMat[b, 2] <- mean(GA.rep@fitness)
+  A <- A + getAdj(tour)
+}
+
+plot.tour <- function(x, y, A) {
+  n <- nrow(A)
+  for (ii in seq(2, n)) {
+    for (jj in seq(1, ii)) {
+      w <- A[ii, jj]
+      if (w > 0) 
+        lines(x[c(ii, jj)], y[c(ii, jj)], lwd = w, col = "lightgray")
+    }
+  }
+}
+
+plot(x, y, type = "n", asp = 1, xlab = "", ylab = "", main = "Tour after GA converged")
+points(x, y, pch = 16, cex = 1.5, col = "grey")
+abline(h = pretty(range(x), 10), v = pretty(range(y), 10), col = "lightgrey")
+tour <- GA.fit@population[1, ]
+tour <- c(tour, tour[1])
+n <- length(tour)
+arrows(x[tour[-n]], y[tour[-n]], x[tour[-1]], y[tour[-1]], length = 0.15, angle = 45, 
+    col = "steelblue", lwd = 2)
+text(x, y - 100, labels(eurodist), cex = 0.8)
+
+```
+
+
+```{r}
+
+plot(GAcities, main = "Progressão do GA")
+
+```
+
+```{r}
+
+plot(x, y, type = "n", asp = 1, xlab = "", ylab = "", main = "Rotas fazendo 100 slimuações")
+plot.tour(x, y, A * 10/max(A))
+points(x, y, pch = 16, cex = 1.5, col = "blue")
+text(x, y - 100, labels(eurodist), cex = 0.8)
+n <- length(tour)
+lines(x[tour[-n]], y[tour[-n]], col = "red", lwd = 1)
+
+
+
+```
+
+
+
+
+## Conclusão
+
+O ecommerce representa um grande salto tecnológico no ambiente de negócios. Comprar coisas do conforto de casa, em um serivço disponível 24 horas por dia e 7 dias por semana ,  realizar trocas, encontrar várias opções , e receber os produtos em um prazo antes inimaginável são alguns das ganhos que esse serviço nos trouxe. Por meio dele foram eliminadas barreiras geográficas e o acesso a diferentes mercados foi democratizado. Sobretudo , vale resaltar o seu papel fundamental durante a pandemia da COVID-19, na qual permitiu com que as pessoas pudessem comprar sem sair de casa , e dessa forma atenuando a proliferação da doença .   
+
+Por meio dele foram impulsionadas uma série de inovações nas tecnologias logísticas,a quais tornaram entrega mais rápida, eficiente e confiável. As empresas têm investido em soluções como centros de distribuição automatizados, veículos de entrega autônomos e rastreamento em tempo real para otimizar a cadeia de suprimentos. Os avanços tecnológicos permitiram a redução de custos, a melhoria da precisão no gerenciamento de estoques e a personalização das experiências de entrega, aumentando a satisfação do cliente. Dentro dessas inovações se encontram os algoritmos de otimização, que possuem um papel fundamental na logística do e-commerce, garantindo que as operações sejam executadas de forma eficiente e econômica. O problema clássico do caixeiro viajante, por exemplo, envolve encontrar a rota mais curta para visitar um conjunto de cidades e retornar ao ponto de partida. Esse problema tem aplicação direta nas entregas, onde o objetivo é encontrar a melhor rota para otimizar o tempo e minimizar os custos.
+
+Neste laboratório lidamos com um tipo de modelo que é essencial na tomada de decisão, pois permite , dado a limitações de recursos (restrições matemáticas do problema), ele nos permite encontrar uma solução ótima (maximizar ou mnimizar uma função). Dessa maneira , conseguimos superar limitações cognitivas humanas e retirar viéses da tomada de decisão
+
+
+
+

@@ -1,0 +1,283 @@
+---
+title: "Lab3"
+format: 
+  docx:
+    toc: true
+    echo: false
+    number-sections: true
+    highlight-style: github
+editor: visual
+---
+
+# Grupo:
+
+-   Eduardo Amorim Vilela de Salis - 11226805
+-   Débora Mauricio Kono - 9896754
+-   Douglas Silva Cardoso - 11766990
+
+# Regras de Associação
+
+## Pacotes Utilizados
+
+```{r}
+#instalar e carregar o pacote arules
+
+library(arules)
+library(arulesViz)
+library(tidyverse)
+library(readxl)
+library(knitr)
+library(ggplot2)
+library(lubridate)
+library(plyr)
+library(dplyr)
+```
+
+## Dados
+
+```{r}
+#| echo: true
+
+retail <- read_excel('Online Retail.xlsx')
+retail <- retail[complete.cases(retail), ]
+retail <- retail |>
+  mutate(
+    Description = as.factor(Description),
+    Country = as.factor(Country),
+    Date = as.Date(InvoiceDate),
+    TransTime = format(InvoiceDate,"%H:%M:%S"),
+    InvoiceNo = as.numeric(as.character(InvoiceNo)))
+
+glimpse(retail)
+
+#retail |> glimpse()
+transactionData <- ddply(retail,c("InvoiceNo","Date"),function(df1)paste(df1$Description, collapse = ","))
+transactionData$InvoiceNo <- NULL
+transactionData$Date <- NULL
+colnames(transactionData) <- c("items")
+
+
+transactionData |> write.csv("market_basket_transactions.csv", quote = FALSE,row.names = FALSE)
+
+
+```
+
+### Transações
+
+**COMENTÁRIOS**: Nesta etapa o número de transações e item difere do que foi apresentado no documento. Obtivemos um número menor de transações e um número bem menor de items. Isso faz com que os próximos resultados sejam um pouco diferentes. Deixamos os códigos para mostrar que o pré-processamento foi igual
+
+```{r}
+#| warning: false
+tr <- read.transactions('market_basket_transactions.csv', format = 'basket',sep=',')
+tr
+```
+
+**COMENTÁRIOS**: A densidade foi um pocuo maior da apresentada no documento do laboratório. Mas os demais resultados são praticamente iguais
+
+```{r}
+summary(tr)
+```
+
+```{r}
+
+if (!require("RColorBrewer")) {
+ # install color package of R
+ install.packages("RColorBrewer")
+#include library RColorBrewer
+library(RColorBrewer)
+}
+itemFrequencyPlot(tr,topN=15,type="absolute",col=brewer.pal(8,'Pastel2'),
+main="Frequencia Absoluta de Itens")
+
+```
+
+```{r}
+itemFrequencyPlot(tr,topN=15,type="relative",col=brewer.pal(8,'Pastel2'),main="Frequenci
+a Relativa de Itens")
+```
+
+**COMENTÁRIOS**: Itens mais frequentes devem ser observados com maior cuidado pelo varejista. No entando , é importante ressaltar que o varejista pode querer observar essas informações em uma janela mais recente das vendas. Pressupõe-se que o padrão de compras não mudou ao longo do 1 ano que se tem registro na base
+
+```{r}
+print("Data mínima: " )
+print(retail$Date |> min())
+print("Data máxima: ")
+print(retail$Date |> max())
+
+
+```
+
+```{r}
+retail |> 
+  dplyr::count(Date)
+```
+
+### Gerando Regras
+
+**COMENTÁRIOS**: Aumentamos o suporte para 0.002, isso alterou bastante o número de regras criadas. Enquanto para um suporte de 0.001 temos 116493 , enquanto para um suporte de 0.002 temos bem menos regras (8280)
+
+```{r}
+#| echo: true
+
+summary(apriori(tr, parameter = list(supp=0.001, conf=0.8,maxlen=10)))
+```
+
+```{r}
+#| echo: true
+
+association.rules <- apriori(tr, parameter = list(supp=0.002, conf=0.8,maxlen=10))
+summary(association.rules)
+
+```
+
+```{r}
+inspect(association.rules[1:10])
+```
+
+### Limitar o número e o tamanho das regras
+
+**COMENTÁRIOS**: Aqui fomos ainda mais agressivos , queremos apenas aqueles que possuem 95% de confiança . Para compensar aumentamos o max len para 5
+
+```{r}
+#| echo: true
+
+shorter.association.rules <- apriori(tr, parameter = list(supp=0.001,
+conf=0.95,maxlen=5))
+inspect(shorter.association.rules[1:10])
+```
+
+### Removendo Regras Redundantes
+
+```{r}
+
+subset.rules <- which(colSums(is.subset(association.rules, association.rules)) > 1)
+# Obtém um subconjunto de regras em um vetor
+length(subset.rules) 
+
+subset.association.rules. <- association.rules[-subset.rules]
+
+length(subset.association.rules.)
+
+```
+
+```{r}
+
+subset.rules <- which(colSums(is.subset(shorter.association.rules, shorter.association.rules)) > 1)
+# Obtém um subconjunto de regras em um vetor
+length(shorter.association.rules) 
+
+subset.association.rules.sem.redundantes<- shorter.association.rules[-subset.rules]
+
+length(subset.association.rules.sem.redundantes)
+
+```
+
+### **10 Regras (após subset e remover redundâncias) de tamanho igual a 3**
+
+```{r}
+inspect(head(subset(subset.association.rules.sem.redundantes, size(subset.association.rules.sem.redundantes) ==3), 10,by='confidence'))
+
+```
+
+### **10 Regras (após subset e remover redundâncias) de tamanho igual a 3**
+
+```{r}
+inspect(head(subset(subset.association.rules.sem.redundantes, size(subset.association.rules.sem.redundantes) ==3), 10))
+
+```
+
+### Regras (após subset e remover redundâncias) que possuem o item de maior frequência
+
+```{r}
+heart.rhs <- subset(subset.association.rules.sem.redundantes, subset = rhs %in% 'WHITE HANGING HEART T-LIGHT HOLDER')
+inspect(heart.rhs)
+```
+
+### Encontrando Regras Relacionadas a Itens Fornecidos
+
+-   Metal
+
+```{r}
+metal.association.rules <- apriori(tr, parameter = list(supp=0.001, conf=0.8),appearance
+= list(default="lhs",rhs="METAL"))
+inspect(head(metal.association.rules))
+```
+
+-   Sugar
+
+```{r}
+sugar.association.rules <- apriori(tr, parameter = list(supp=0.001, conf=0.95),appearance
+= list(default="lhs",rhs="SUGAR"))
+
+inspect(head(sugar.association.rules))
+
+```
+
+-   Coffe
+
+```{r}
+coffee.association.rules <- apriori(tr, parameter = list(supp=0.001, conf=0.95),appearance
+= list(default="lhs",rhs="COFFEE"))
+
+inspect(head(coffee.association.rules))
+```
+
+## Visualizando Regras de Associação
+
+### Gráfico de Dispersão
+
+```{r}
+subRules<-association.rules[quality(association.rules)$confidence>0.4]
+plot(subRules)
+plot(subRules,method="two-key plot")
+
+```
+
+```{r}
+subRules<-subset.association.rules.[quality(subset.association.rules.)$confidence>0.4]
+plot(subRules)
+plot(subRules,method="two-key plot")
+```
+
+## Visualizações Baseadas em Grafos
+
+```{r}
+top10subRules <- head(subRules, n = 10, by = "confidence")
+plot(top10subRules, method = "graph")
+```
+
+```{r}
+
+plot( head(subRules, n = 25, by = "confidence"), method = "graph")
+```
+
+```{r}
+plot(top10subRules , method = "matrix")
+
+
+```
+
+## Representação de Regra Individual
+
+```{r}
+
+subRules2<-head(subRules, n=20, by="lift")
+plot(subRules2, method="paracoord")
+
+```
+
+# Conclusões
+
+Neste laboratório, trabalhamos utilizando algoritmos de regras de associação, em específico o "APRIORI". Esse tipo de modelo é amplamente utilizado na mineração de dados para descobrir padrões de associação em conjuntos de transações/cestas de produtos (inclusive para juntar tópicos de palavras). Esses algoritmos procuram identificar relações entre itens frequentemente coocorrentes, permitindo a extração de informações valiosas para tomada de decisões de negócios. Sua aplicação permite a extração de informações relevantes para apoiar a tomada de decisões de negócios em várias áreas, proporcionando oportunidades de otimização e melhoria de resultados.
+
+Com base em regras de associação identificadas pelo APRIORI, uma empresa de varejo pode criar promoções personalizadas para incentivar a compra conjunta de produtos frequentemente associados, aumentando as vendas e a satisfação do cliente. Além disso, o APRIORI pode auxiliar na identificação de grupos de clientes com características semelhantes, permitindo a criação de campanhas de marketing direcionadas e eficientes. Para além do marketing, o APRIORI poderia auxiliar um processo de categorização de produtos com base nas palavras que aparecem em seus títulos, automatizando um processo que geralmente é inteiramente manual e subjetivo. Pensando em finanças, essa potente ferramenta pode ser utilizada para analisar o portfólio de gestores de investimento, identificando ativos que geralmente são utilizados em conjunto para implantar estratégias de investimento.
+
+O conjunto de dados "Online-Retail" do UCI Machine Learning Repository oferece uma oportunidade interessante de explorar a análise de vendas e o comportamento dos clientes em um ambiente de varejo online. Ao aplicar técnicas de mineração de dados e análises adequadas, é possível obter insights valiosos para aprimorar as estratégias de negócios e impulsionar o sucesso da empresa. Foi possível encontrar algumas relações interessantes:
+
+-   Produtos de uma mesma linha "FRENCH BLUE METAL DOOR" são geralmente comprados em conjunto
+-   Itens de decoração são compratdos com itens de metal
+-   Compras de ART LIGHT E FUNK MONKEY estão bem relacionadas
+-   Apesar de obvio, o algorítmo foi capaz de encontrar relações em
+    -   produtos natalinos (CHRISTMAS GINGHAM TREE,WOODEN STAR CHRISTMAS SCANDINAVIAN,CHRISTMAS GINGHAM TREE)
+    -   Produtos relacioandos a chá e café (xírcares, talheres, pires, jarras para açúcar)
+        -   O Café inclusive é comprado como consequência de CHÁ

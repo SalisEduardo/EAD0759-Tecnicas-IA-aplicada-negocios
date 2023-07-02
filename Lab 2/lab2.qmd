@@ -1,0 +1,487 @@
+---
+title: "Lab 2"
+format: 
+  html: default
+editor: visual
+---
+
+# Grupo:
+
+-   Eduardo Amorim Vilela de Salis - 11226805
+-   Débora Mauricio Kono - 9896754
+-   Douglas Silva Cardoso - 11766990
+
+# Biblioteca
+
+```{r}
+library(WDI) # baixar os dados do World Bank
+library(magrittr)
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(cluster)
+library(fpc)
+
+
+library(formattable)
+
+```
+
+```{r}
+pre_process_df <- function(df){
+  df <- subset(df, region != "Aggregates")
+  
+  df$region |> as.character()
+  
+  dfi <- df[, lista_indicadores]
+  row.names(dfi) <- df$country
+  colnames(dfi) <- c("Inflacao", "PIB_per_Capita", "Crescimento_PIB", "Desemprego")
+  
+  dfi <- na.omit(dfi)
+  dfi$Desemprego <- 100 - dfi$Desemprego
+  names(dfi)[4] <- "Emprego"
+  
+  return(dfi)
+  
+}
+```
+
+# KEANS
+
+## Análise para 2014
+
+```{r}
+lista_indicadores <- c("FP.CPI.TOTL.ZG", # inflação (%)
+                       "NY.GDP.PCAP.CD", # Pib per capita (USD)
+                       "NY.GDP.MKTP.KD.ZG", # crescimento do PIB anual (%),
+                       "SL.UEM.TOTL.ZS" # Desemprego (%)
+)
+  
+
+
+df2014 <- WDI(indicator = lista_indicadores, country = "all", start = 2014, end = 2014,
+              extra = TRUE)
+str(df2014 )
+
+
+dfi2014 <- pre_process_df(df2014)
+
+
+dfi2014 |> str()
+
+dfi2014 |> summary()
+
+dfi2014 |> head()
+
+
+
+```
+
+### Determinando Quantidade de grupos
+
+```{r}
+dfi2014_escala <- scale(dfi2014)
+
+
+
+wss <- (nrow(dfi2014_escala)-1)*sum(apply(dfi2014_escala,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(dfi2014_escala,centers=i)$withinss)
+
+plot(1:15, wss, type="b", xlab="Número de Grupos",ylab="Soma dos quadrados dentro dos grupos")
+
+```
+
+### Plotando os clusters
+
+```{r}
+
+
+dendo <- dfi2014_escala %>% dist() %>% hclust()
+plot(dendo)
+rect.hclust(dendo, k = 4, border = "blue")
+rect.hclust(dendo, k = 5, border = "red")
+rect.hclust(dendo, k = 8, border = "green")
+
+
+```
+
+```{r}
+library(cluster)
+library(fpc)
+
+grupos <- kmeans(dfi2014_escala, centers=5)
+clusplot(dfi2014_escala, grupos$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+```
+
+```{r}
+grupos <- kmeans(dfi2014_escala, centers=4)
+clusplot(dfi2014_escala, grupos$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+
+```
+
+### Plotando os clusters
+
+```{r}
+
+dfi2014_escala[c("Brazil", "Chile", "Colombia", "Norway", "United States"),] %>% dist()
+
+
+```
+
+### Países com MENOR dissimilaridade em relação ao Brasil
+
+```{r}
+mat_brasil <- dfi2014_escala %>% dist(diag = TRUE, upper = TRUE) %>% as.matrix()
+
+mat_brasil[, "Brazil"] %>% sort() %>% head(5)
+```
+
+### Países com MAIOR dissimilaridade em relação ao Brasil
+
+```{r}
+mat_brasil[, "Brazil"] %>% sort() %>% tail(5)
+
+```
+
+### Estatística por cluster
+
+```{r}
+set.seed(123) 
+lista_clusteres <- kmeans(dfi2014_escala, centers = 5)$cluster
+
+
+dfi2014_com_cluster <- dfi2014 |> 
+  mutate(cluster = lista_clusteres) 
+
+
+stats_cluster <- dfi2014_com_cluster |>
+  group_by(cluster) |>
+  summarise(
+    qtd = n(),
+    Media_inflacao = mean(Inflacao, na.rm = TRUE),
+    Media_pibpc = mean(PIB_per_Capita, na.rm = TRUE),
+    Media_cresciemento = mean(Crescimento_PIB),
+    Media_emprego = mean(Emprego, na.rm = TRUE))
+
+stats_cluster  
+
+```
+
+```{r}
+dfi2014_com_cluster["Brazil",]
+```
+
+```{r}
+
+dfi2014_com_cluster |> filter(cluster == 3) # paises realmente parecidos
+
+```
+
+```{r}
+dfi2014_com_cluster |> filter(cluster == 2) # paises desenvolvidos 
+```
+
+```{r}
+dfi2014_com_cluster |> filter(cluster == 5) # paises subdesenvolvidos / emergentes 
+```
+
+## Análise para 2020
+
+```{r}
+lista_indicadores <- c("FP.CPI.TOTL.ZG", # inflação (%)
+                       "NY.GDP.PCAP.CD", # Pib per capita (USD)
+                       "NY.GDP.MKTP.KD.ZG", # crescimento do PIB anual (%),
+                       "SL.UEM.TOTL.ZS" # Desemprego (%)
+)
+  
+
+
+df2020 <- WDI(indicator = lista_indicadores, country = "all", start = 2020, end = 2020,
+              extra = TRUE)
+str(df2020 )
+
+
+dfi2020 <- pre_process_df(df2020)
+
+
+dfi2020 |> str()
+
+dfi2020 |> summary()
+
+dfi2020 |> head()
+
+
+
+```
+
+```{r}
+
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+
+# Create a sample dataset
+set.seed(123)
+cluster <- rep(c("Cluster 1", "Cluster 2", "Cluster 3"), each = 50)
+variable_A <- rnorm(150, mean = 0, sd = 1)
+variable_B <- rnorm(150, mean = 0, sd = 1)
+data <- data.frame(cluster, variable_A, variable_B)
+
+# Reshape the data
+data_long <- data %>% 
+  tidyr::pivot_longer(cols = c(variable_A, variable_B), names_to = "Variable", values_to = "Value")
+
+# Boxplot with facet_wrap
+ggplot(data_long, aes(x = cluster, y = Value)) +
+  geom_boxplot() +
+  ylab("Value") +
+  ggtitle("Boxplot: Distribution by Cluster") +
+  facet_wrap(~ Variable, scales = "free_y", nrow = 1)
+
+
+```
+
+```{r}
+dfi2014_com_cluster_long <-  dfi2014_com_cluster |>
+   tidyr::pivot_longer(cols = c("Inflacao" ,"PIB_per_Capita","Crescimento_PIB","Emprego"), names_to = "Variable", values_to = "Value")
+
+ggplot(dfi2014_com_cluster_long, aes(x = cluster, y = Value,group = cluster)) +
+  geom_boxplot(aes(fill=as.factor(cluster))) +
+  ylab("Value") +
+  ggtitle("Boxplot: Distribution by Cluster") +
+  facet_wrap(~ Variable, scales = "free_y", nrow = 1)
+
+```
+
+### Determinando Quantidade de grupos
+
+```{r}
+dfi2020_escala <- scale(dfi2020)
+
+
+
+wss <- (nrow(dfi2020_escala)-1)*sum(apply(dfi2020_escala,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(dfi2020_escala,centers=i)$withinss)
+
+plot(1:15, wss, type="b", xlab="Número de Grupos",ylab="Soma dos quadrados dentro dos grupos")
+
+```
+
+### Plotando os clusters
+
+```{r}
+
+
+dendo <- dfi2020_escala %>% dist() %>% hclust()
+plot(dendo)
+rect.hclust(dendo, k = 4, border = "blue")
+rect.hclust(dendo, k = 5, border = "red")
+rect.hclust(dendo, k = 8, border = "green")
+
+
+```
+
+```{r}
+
+
+grupos <- kmeans(dfi2020_escala, centers=5)
+clusplot(dfi2020_escala, grupos$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+```
+
+```{r}
+grupos <- kmeans(dfi2020_escala, centers=4)
+clusplot(dfi2020_escala, grupos$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+
+```
+
+### Plotando os clusters
+
+```{r}
+
+dfi2020_escala[c("Brazil", "Chile", "Colombia", "Norway", "United States"),] %>% dist()
+
+
+```
+
+### Países com MENOR dissimilaridade em relação ao Brasil
+
+```{r}
+mat_brasil <- dfi2020_escala %>% dist(diag = TRUE, upper = TRUE) %>% as.matrix()
+
+mat_brasil[, "Brazil"] %>% sort() %>% head(5)
+```
+
+### Países com MAIOR dissimilaridade em relação ao Brasil
+
+```{r}
+mat_brasil[, "Brazil"] %>% sort() %>% tail(5)
+
+```
+
+### Estatística por cluster
+
+```{r}
+set.seed(123) 
+lista_clusteres <- kmeans(dfi2020_escala, centers = 5)$cluster
+
+
+dfi2020_com_cluster <- dfi2020 |> 
+  mutate(cluster = lista_clusteres) 
+
+
+stats_cluster <- dfi2020_com_cluster |>
+  group_by(cluster) |>
+  summarise(
+    qtd = n(),
+    Media_inflacao = mean(Inflacao, na.rm = TRUE),
+    Media_pibpc = mean(PIB_per_Capita, na.rm = TRUE),
+    Media_cresciemento = mean(Crescimento_PIB),
+    Media_emprego = mean(Emprego, na.rm = TRUE))
+
+stats_cluster  
+
+```
+
+```{r}
+dfi2020_com_cluster["Brazil",]
+```
+
+```{r}
+dfi2020_com_cluster |> filter(cluster == 1)  # Zimbabwe é um outlier 
+```
+
+```{r}
+dfi2020_com_cluster |> filter(cluster == 4)  
+```
+
+```{r}
+dfi2020_com_cluster |> filter(cluster == 3)  
+```
+
+```{r}
+dfi2020_com_cluster |> filter(cluster == 5)  
+```
+
+```{r}
+dfi2020_com_cluster <-  dfi2020_com_cluster |>
+   tidyr::pivot_longer(cols = c("Inflacao" ,"PIB_per_Capita","Crescimento_PIB","Emprego"), names_to = "Variable", values_to = "Value")
+
+ggplot(dfi2020_com_cluster, aes(x = cluster, y = Value,group = cluster)) +
+  geom_boxplot(aes(fill=as.factor(cluster))) +
+  ylab("Value") +
+  ggtitle("Boxplot: Distribution by Cluster") +
+  facet_wrap(~ Variable, scales = "free_y", nrow = 1)
+
+
+```
+
+------------------------------------------------------------------------
+
+# Seeds Agrupamento hierarquico
+
+```{r}
+set.seed(786)
+file_loc <- 'seeds.txt'
+seeds_df <- read.csv(file_loc,sep = '\t',header = FALSE)
+
+
+feature_name <-
+c('area','perimeter','compactness','length.of.kernel','width.of.kernal
+','asymmetry.coefficient','length.of.kernel.groove','type.of.seed')
+colnames(seeds_df) <- feature_name
+```
+
+```{r}
+str(seeds_df)
+```
+
+```{r}
+summary(seeds_df)
+
+
+any(is.na(seeds_df))
+
+```
+
+```{r}
+seeds_df <- na.omit(seeds_df)
+
+seeds_label <- seeds_df$type.of.seed
+seeds_df$type.of.seed <- NULL
+str(seeds_df)
+```
+
+```{r}
+seeds_df_sc <- as.data.frame(scale(seeds_df))
+summary(seeds_df_sc)
+```
+
+```{r}
+
+dist_mat <- dist(seeds_df_sc, method = 'euclidean')
+hclust_avg <- hclust(dist_mat, method = 'average')
+plot(hclust_avg)
+cut_avg <- cutree(hclust_avg, k = 3)
+
+```
+
+```{r}
+
+cut_avg <- cutree(hclust_avg, k = 3)
+
+```
+
+```{r}
+plot(hclust_avg)
+rect.hclust(hclust_avg , k = 3, border = 2:6)
+abline(h = 3, col = 'red')
+
+```
+
+```{r}
+#install.packages("dendextend")
+suppressPackageStartupMessages(library(dendextend))
+avg_dend_obj <- as.dendrogram(hclust_avg)
+avg_col_dend <- color_branches(avg_dend_obj, h = 3)
+
+```
+
+```{r}
+
+suppressPackageStartupMessages(library(dplyr))
+seeds_df_cl <- mutate(seeds_df, cluster = cut_avg)
+count(seeds_df_cl,cluster)
+
+```
+
+```{r}
+suppressPackageStartupMessages(library(ggplot2))
+ggplot(seeds_df_cl, aes(x=area, y = perimeter, color =
+factor(cluster))) + geom_point()
+
+
+```
+
+------------------------------------------------------------------------
+
+# Conclusão
+
+Neste laboratório, pudemos compreender a importância da clusterização como um processo para identificar similaridades nos dados. Economistas e cientistas sociais podem se beneficiar da clusterização para compreender as verdadeiras relações entre os países, sem depender de classificações tradicionais baseadas em demarcações territoriais, regionais ou políticas. Da mesma forma, um gestor de ações pode agrupar seus ativos de forma não óbvia, identificando correlações "escondidas" e evitando a subjetividade das demarcações setoriais fornecidas por provedores como a Bolsa, Bloomberg, S&P, CVM, etc. Gerentes de marketing podem obter uma compreensão mais profunda de seus consumidores, identificando grupos nos quais uma campanha de marketing específica pode ser eficaz e conhecendo os concorrentes que possuem produtos semelhantes. Agricultores e biólogos podem compreender como diferentes grupos de sementes se comportam em diferentes condições climáticas e ambientais.
+
+Ao aplicarmos o algoritmo K-means no dataset do Banco Mundial, pudemos capturar as reações dos países a diferentes dinâmicas econômicas. Observamos o seguinte:
+
+-   Em 2014, o K-means foi capaz de identificar países em situação extrema, como aqueles afetados por guerras, com baixo PIB per capita e alta inflação, agrupando-os nos clusters 3 e 1. Também identificamos países ricos/desenvolvidos que foram alocados no cluster 2 (EUA, Dinamarca, Canadá, etc.). Países subdesenvolvidos e emergentes foram agrupados no cluster 5.
+
+-   Em 2020, os clusters apresentaram uma distribuição um pouco mais uniforme (hipótese: "a pandemia pode ter aumentado a similaridade entre alguns países"). As regiões mais desenvolvidas (grupo 4) ainda não haviam sofrido os efeitos inflacionários da pandemia e experimentaram uma desaceleração menor. No entanto, é importante destacar que a principal distinção entre essas regiões foi o alto PIB per capita, um panorama histórico e anterior à pandemia. Independentemente do cluster, foi possível observar uma desaceleração generalizada entre os países devido à pandemia, ao contrário do que ocorreu em 2014.
+
+-   O Brasil, apesar de ter registrado uma queda no PIB abaixo da média, foi classificado no grupo de países emergentes/subdesenvolvidos. Em ambas as análises, foi possível identificar que o Brasil ficou agrupado com países emergentes/subdesenvolvidos, caracterizados por baixo crescimento e baixo PIB per capita.
+
+Esta análise certamente será aprimorada com a inclusão de novas variáveis que nos permitam distinguir melhor os países. Algumas dessas variáveis podem ser o índice de alfabetização, notas no PISA (Programme for International Student Assessment), produtividade econômica, níveis de fome, índices de criminalidade, qualidade da saúde pública, índice de corrupção e uma variável indicadora para identificar se o país está em guerra, entre outras.
+
+A adição dessas variáveis proporcionará uma visão mais abrangente e precisa da situação econômica, social e política de cada país, permitindo uma análise mais completa e aprofundada. Com um conjunto de dados mais abrangente, será possível identificar melhor os padrões, tendências e correlações entre as diferentes variáveis, o que contribuirá para uma compreensão mais precisa dos clusters e das relações entre os países.
+
+Portanto, ao incorporar essas novas variáveis, será possível enriquecer a análise e obter insights mais valiosos sobre as semelhanças e diferenças entre os países, possibilitando uma tomada de decisão mais informada em várias áreas, como economia, política, educação, saúde e segurança.
