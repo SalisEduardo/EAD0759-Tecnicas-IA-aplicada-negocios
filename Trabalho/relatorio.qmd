@@ -1,0 +1,329 @@
+---
+title: "Cluster de Fundos de Ações Brasileiros"
+format: 
+  html:
+    page-layout: full
+    code-fold: true
+    echo: false
+    warning: false
+    self-contained: true
+editor: visual
+---
+
+# 1. Introdução
+
+Os fundos de ações desempenham um papel de destaque no mercado financeiro brasileiro, proporcionando aos investidores a oportunidade de participar dos retornos potenciais gerados pelas empresas listadas na bolsa de valores. Esses fundos são geridos por profissionais capacitados, responsáveis por analisar e selecionar ações, bem como compor portfólios diversificados. Diversos fatores têm impulsionado o crescimento desse mercado, como o aumento da participação de investidores no mercado de capitais, a busca por diversificação, a demanda por gestão profissional e o aumento do número de empresas listadas. No entanto, apesar do recente crescimento, o mercado brasileiro ainda é considerado pequeno em comparação com países desenvolvidos, tanto em termos de participação da população quanto do número de empresas listadas na bolsa de valores. Essa característica faz com que os fundos de investimento apresentem similaridades entre si, limitando as possibilidades de diversificação.
+
+Podemos aplicar técnicas de clusterização para superar as limitações de similaridade entre os fundos de ações no mercado brasileiro. Esses modelos permitem agrupar os fundos com base em características semelhantes, proporcionando uma visão abrangente das opções de investimento. Ao identificar grupos de fundos correlacionados, os investidores podem compreender padrões de retorno, risco e volatilidade, facilitando a seleção de ativos para diversificação. A clusterização ajuda a identificar fundos que ofereçam benefícios de diversificação, reduzindo riscos específicos e aumentando retornos estáveis. Essa abordagem sistemática auxilia investidores na tomada de decisões informadas e na otimização de seus portfólios, maximizando oportunidades de diversificação.
+
+Essa analise pode ser útil para fundos de pensão ou investidores pessoa física qu que busquem diversificar suas carteiras entre fundos de diferentes perfis , assim como para agentes autonomos que procuram indicar diferentes produtos a seus clientes.
+
+# 2. Clusterização em finanças
+
+Um problema de clusterização consiste em um conjunto de objetos e um conjunto de características associadas a esses objetos. O objetivo é separar os objetos em grupos (chamados de clusters) usando as características, onde as similaridades intra-grupos são maximizadas e as similaridades inter-grupos são minimizadas
+
+Lopez de Prado (2020) enumera os seguintes tipos de cluster:
+
+1.  Conectividade: Essa clusterização é baseada em conectividade de distância, assim como a clusterização hierárquica.
+
+2.  Centroides: Esses algoritmos realizam uma quantização vetorial, como o k-means.
+
+3.  Distribuição: Os clusters são formados usando distribuições estatísticas, como uma mistura de gaussianas.
+
+4.  Densidade: Esses algoritmos procuram por regiões densas e conectadas no espaço de dados. Exemplos incluem DBSCAN e OPTICS.
+
+5.  Subespaço: Os clusters são modelados em duas dimensões, características e observações. Um exemplo é o biclustering (também conhecido como coclustering).
+
+Problemas de clusterização podem aparecer em diferentes situações do processo de investimentos. Por exemplo, analistas podem procurar por analogias históricas para eventos atuais, uma tarefa que envolve desenvolver uma taxonomia numérica de eventos. Gestores de portfólio frequentemente agrupam valores mobiliários com base em diversas características, para obter valores relativos entre pares. Gestores de risco buscam evitar a concentração de riscos em ativos que compartilham características comuns. Traders desejam entender fluxos que afetam um conjunto de valores mobiliários, para determinar se uma alta ou uma venda está relacionada a um valor mobiliário específico ou afeta uma categoria compartilhada por múltiplos valores mobiliários. (López de Prado 2020)
+
+A classificação de observações em grupos requer alguns métodos para calcular a distância ou a (dis)similaridade entre cada par de observações. O resultado desse cálculo é conhecido como matriz de dissimilaridade ou distância. É um processo crítico que influência no formato do cluster , assim como impacta na forma em que a similaridade entre dois elementos seŕa obtida. Há métricas tradicionais como a distância Euclidiana e a de Manhattan ; e as baseadas em correlação (Pearson,Eisen cosine, Spearman ,Kendall)
+
+# 3. Dados
+
+Através de uma lista selecionada de 81 fundos de ações , extraímos da plataforma "Comdinheiro" dados históricos relativos a performance e risco em diferentes janelas (diário, mensal; 3, 6, 12 , 24 meses, etc. ) , patrimônio liquido e data de fundação dos fundo. A amostra dos dados se incia em janeiro de 2010 à junho de 2023. Entre as variáveis de performance , se encontram:
+
+-   Retorno: ganho ou perda financeira de um investimento em um período de tempo específico.
+
+<!-- -->
+
+-   Beta: sensibilidade de um ativo ou fundo em relação às variações do mercado.
+
+-   Sharpe: medida que avalia o retorno de um investimento em relação ao risco assumido, levando em consideração o retorno livre de risco.
+
+-   Volatilidade: A volatilidade é a medida da variação dos preços de um ativo ao longo do tempo, refletindo a sua instabilidade e risco de flutuações significativas.
+
+# 4. Metodologia e ferramentas
+
+Os códigos foram feitos em R , sendo utilizados diversos pacotes foram utilizados para análise e processamento de dados financeiros. O pacote **`tidyverse`**, que inclui o **`ggplot2`** e o **`dplyr`**, possibilitou a manipulação eficiente e a visualização atraente dos dados. O pacote **`cluster`** foi empregado para realizar análises de cluster, incluindo algoritmos de clusterização e cálculo de distâncias. A biblioteca **`factoextra`** contribuiu para a interpretação e visualização dos resultados obtidos na análise de fatores e clusterização. O **`lubridate`** facilitou a manipulação e o processamento de datas e horários nos dados financeiros. Já o **`dbscan`** permitiu a aplicação do algoritmo DBSCAN para a clusterização baseada em densidade. Além disso, o **`corrplot`** auxiliou na visualização das matrizes de correlação, enquanto o **`quantmod`** foi utilizado para recuperar, manipular e analisar dados financeiros, como cotações de ações e índices. Os pacotes **`PerformanceAnalytics`** e **`PortfolioAnalytics`** foram essenciais para a análise de desempenho financeiro e construção de portfólios, incluindo a otimização e a avaliação de riscos. A utilização desses pacotes demonstra a abrangência e a eficácia das ferramentas disponíveis para análise quantitativa e financeira. Entre outros.
+
+Em uma etapa anterior à clusterização, removemos variáveis redundantes cuja a correlação absoluta era acima de 0.7 . Nessas variáveis aplicamos a ténica de redução de dimensionalidade PCA (principal Component Analysis) e selecionamos as 4 componentes principais , as quais explicavam conjuntamente 80% da variância dos dados
+
+```{r}
+variance_df
+```
+
+Para o escopo dessa pesquisa , recortamos a amostra do dia apenas do d30 de dezembro de 2020. Realizmos a clusterização dos fundos através do algorítmo K-means e dividimos os dados em 3 grupos, número que consideramos ser razoável dado aos métodos de otimização de números de cluster (WSS e Silhouette) e a análise do negócio (um número alto de clusters de fundos muito provavlemente trará grupos muito parecidos e pode confundir investdiores entre quais clusters investir)
+
+Após a seleção de cluster, analisamos como a o retorno médio de cada grupo se comportou ao longo do ano de 2023 e sua performance contra o Ibovespa.
+
+```{r}
+
+#| echo : true
+
+#script principal
+#source("cluster_FIAS.R")
+
+#amostra dis daods
+head(FIAs_quarters[,c(1,3,4,5,6,7,8)])
+
+```
+
+# 5. Exploção dos dados
+
+-   Datas de fundação dos Fundos:
+
+```{r}
+
+ano_inicio_fias |>
+  ggplot(aes(x=ano_inicio)) +
+  geom_bar() + labs(x= "Ano de fundação",y='Contagem',title = 'Histograma do ano de fundação de cada fundo')
+
+```
+
+-   Retorno acumulado dos fundos (área em verde) contra o IBOVESPA representado pelo ETF BOVA11 (linha preta): a maioria dos fundos dessa amostar superou o benchmark
+
+```{r}
+
+plot_cummulative_rets
+
+```
+
+-   Correlação dos fundos com o BOVA11: a maioria dos fundos possui uma correlação acima de 0.8 com um fundo passivo qe replica o índice IBOVESPA
+
+```{r}
+corr_with_BOVA11 |>
+  ggplot( aes(x=Correlation)) +
+    geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) + labs(x= "Correlação",y='Densidade',title = 'Corrleação dos fundos com o principal índice do mercado')
+
+```
+
+-   Risco x Retorno
+
+```{r}
+kpis_funds_bova_infos |>
+  dplyr::mutate("is_benchmark" =  ifelse(nome=='BOVA11',"Benchmark","Fundo")) |>
+  ggplot(aes(y=`Annualized Return`,x=`Annualized Std Dev`)) +
+  geom_point(aes(color=is_benchmark,size=`Annualized Sharpe (Rf=0%)`))  +
+  geom_vline(xintercept =  median(kpis_funds_bova_infos[,"Annualized Std Dev"]),size = 1.5, linetype = "dashed",color = "darkblue")+
+  geom_hline(yintercept =  median(kpis_funds_bova_infos[,"Annualized Return"]),size = 1.5, linetype = "dashed",color = "darkblue")
+
+
+
+```
+
+-   Métricas das principais KPIs:
+
+```{r}
+summary_df
+```
+
+```{r}
+ggpubr::ggarrange(plotlist=histograms)
+
+```
+
+-   Fundos x Ibovespa: a maioria teve retornos anualizados melhores e uma menor volatidad (dessa forma a maioria obteve melhor sharpe. Poucos possuem menor Value at risk do que o IBOVESAP e menos da metade possue menor máximo Drawdown
+
+```{r}
+tab_bova11_comparison
+```
+
+# 6. Implementando os modelos
+
+```{r}
+#| echo: true
+
+#selected_date <- max(FIAs_quarters$data)
+selected_date <- "2022-12-30"
+
+cut_date_FIAs_quarters <- FIAs_quarters  |>
+  dplyr::filter(data == selected_date) 
+
+cut_date_FIAs_quarters_features <- cut_date_FIAs_quarters  |>
+  dplyr::select(all_of(columns_features)) 
+
+pca_cut_date_FIAs_quarters <- cut_date_FIAs_quarters_features|>
+  prcomp(scale=TRUE)
+  
+
+# Get the variance explained by each principal component
+variance_explained <- pca_cut_date_FIAs_quarters$sdev^2 / sum(pca_cut_date_FIAs_quarters$sdev^2)
+
+# Create a data frame for the plot
+variance_df <- data.frame(
+  Principal_Component = paste0("PC", 1:length(variance_explained)),
+  Variance_Explained = variance_explained
+)
+
+# Plot the explained variance
+ggplot(variance_df, aes(x = Principal_Component, y = Variance_Explained)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Principal Component", y = "Variance Explained") +
+  ggtitle("Explained Variance by Principal Component") +
+  theme_minimal()
+
+```
+
+```{r}
+#| echo: true
+
+
+variance_df$Cummulative_Variance_Explained <- cumsum(variance_df$Variance_Explained)
+
+variance_df
+```
+
+```{r}
+#| echo: true
+pc1 <- pca_cut_date_FIAs_quarters$x[, 1]
+pc2 <- pca_cut_date_FIAs_quarters$x[, 2]
+pc3 <- pca_cut_date_FIAs_quarters$x[, 3]
+pc4 <- pca_cut_date_FIAs_quarters$x[, 4]
+
+
+df_pca_two_dim <- data.frame(PC1 = pc1, PC2 = pc2)
+
+
+ggplot(df_pca_two_dim, aes(x = PC1, y = PC2)) +
+  geom_point() +
+  labs(x = "Principal Component 1", y = "Principal Component 2") +
+  ggtitle("Fundos Plotados sobre dois componentes") +
+  theme_minimal()
+```
+
+-   Número ótimo de clusters
+
+```{r}
+
+
+
+df_pca_cluster <- data.frame(PC1 = pc1, PC2 = pc2,PC3 = pc3,PC4 = pc4)
+
+# k = 4 or 6   wss euclidian
+
+fviz_nbclust(df_pca_cluster, kmeans, method = "wss") +
+  geom_vline(xintercept = 4, linetype = 2) +
+  labs(title = 'wss euclidian')
+
+# k = 2   silhouette euclidian
+
+fviz_nbclust(df_pca_cluster, kmeans, method = "silhouette") + labs(title = 'silhouette euclidian')
+
+
+#  k = 7   wss pearson
+
+fviz_nbclust(df_pca_cluster, kmeans, method = "wss",diss = get_dist(df_pca_cluster, method = "pearson")) +
+  geom_vline(xintercept = 7, linetype = 2) + labs(title = 'wss pearson')
+
+#  k = 2 silhouette pearson
+
+fviz_nbclust(df_pca_cluster, kmeans, method = "silhouette",diss = get_dist(df_pca_cluster, method = "pearson")) + labs(title = 'silhouette pearson')
+
+
+```
+
+```{r}
+selected_k  = 3 
+funds_kmeans <- kmeans(df_pca_cluster, selected_k, iter.max = 10, nstart = 1)
+
+print(funds_kmeans)
+
+aggregate(cut_date_FIAs_quarters_features, by=list(cluster=funds_kmeans$cluster), mean)
+
+```
+
+```{r}
+
+
+funds_by_cluster<- data.frame(
+  nome = cut_date_FIAs_quarters$nome,
+  cluster = funds_kmeans$cluster
+)
+
+
+nomes_fias1 <- funds_by_cluster |>
+  dplyr::filter(cluster == 1) |>
+  dplyr::pull(nome) |>
+  unique()
+
+nomes_fias2 <- funds_by_cluster |>
+  dplyr::filter(cluster == 2) |>
+  dplyr::pull(nome) |>
+  unique()
+
+nomes_fias3 <- funds_by_cluster |>
+  dplyr::filter(cluster == 3) |>
+  dplyr::pull(nome) |>
+  unique()
+
+
+paste("Tamanho do cluster 1:",length(nomes_fias1), "fundos") 
+paste("Tamanho do cluster 2:",length(nomes_fias2), "fundos") 
+paste("Tamanho do cluster 3:",length(nomes_fias3), "fundos") 
+
+
+cluster1_returns_expost <- daily_rets_time_series['2023-01-01/',nomes_fias1]
+cluster2_returns_expost <- daily_rets_time_series['2023-01-01/',nomes_fias2]
+cluster3_returns_expost <- daily_rets_time_series['2023-01-01/',nomes_fias3]
+
+cluster1_returns_expost_mean <-  cluster1_returns_expost |> 
+  as.matrix() |>
+  apply(1, mean) |>
+  xts(order.by = index(cluster1_returns_expost)) |>
+  setNames("Cluster1")
+
+cluster2_returns_expost_mean <-  cluster2_returns_expost |> 
+  as.matrix() |>
+  apply(1, mean) |>
+  xts(order.by = index(cluster2_returns_expost)) |>
+  setNames("Cluster2")
+
+cluster3_returns_expost_mean <-  cluster3_returns_expost |> 
+  as.matrix() |>
+  apply(1, mean) |>
+  xts(order.by = index(cluster3_returns_expost)) |>
+  setNames("Cluster3")
+
+all_cluster_means <- do.call(merge.xts, 
+                             list(cluster1_returns_expost_mean,
+                                  cluster2_returns_expost_mean,cluster3_returns_expost_mean,
+                                  daily_rets_time_series['2023-01-01/','BOVA11']))  |> na.omit()
+
+all_cluster_means_cumrets <- get_cummulative_returns(all_cluster_means)
+
+all_cluster_means_cumrets |>
+  data.frame() |>
+  rownames_to_column(var = "Index") |>
+  gather(key = "Group", value = "CumReturn", -Index) |>
+  dplyr::mutate(Index = as.Date(Index)) |>
+  ggplot(aes(x = Index, y = CumReturn, color = Group, group = Group)) +
+  geom_line() +
+  labs(x = 'Data', y = "Retorno acumulado")
+
+```
+
+```{r}
+all_cluster_means |> 
+  cor() |>
+  corrplot::corrplot(type = 'lower', method = "color",diag=FALSE, tl.col = "black")
+```
+
+# 7. Conclusões e próximos passos
+
+# 8. Refrências
+
+LOPEZ DE PRADO, Marcos. Machine Learning for Asset Managers. Cambridge University Press, 2020.
+
+KASSAMBARA, Alboukadel. Practical Guide to Cluster Analysis in R: Unsupervised Machine Learning (Multivariate Analysis Book 1).
+
+RAFFINOT, Thomas. Hierarchical Clustering-Based Asset Allocation. Journal of Portfolio Management, v. 44, n. 2, p. 89-99, 2017. Disponível em: [**http://jpm.iijournals.com/content/44/2/89**](http://jpm.iijournals.com/content/44/2/89). DOI: [**https://doi.org/10.3905/jpm.2018.44.2.089**](https://doi.org/10.3905/jpm.2018.44.2.089).
